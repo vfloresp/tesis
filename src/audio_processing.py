@@ -1,26 +1,32 @@
 import os
 import pickle
-from tutoriales.preprocess import SPECTROGRAMS_SAVE_DIR
 import librosa
 import numpy as np
 
 
 class Loader:
-    """Load audio files given certain parameters"""
-
     def __init__(self, sample_rate, duration, mono):
         self.sample_rate = sample_rate
         self.duration = duration
         self.mono = mono
 
     def load(self, file_path):
-        signal = librosa.load(
-            file_path,
-            sr=self.sample_rate,
-            duration=self.duration,
-            mono=self.mono,
-        )[0]
+        signal = None
+        try:
+            signal = librosa.load(
+                file_path,
+                sr=self.sample_rate,
+                duration=self.duration,
+                mono=self.mono,
+            )[0]
+        except:
+            print("error with " + file_path)
         return signal
+
+class GenereLabeler:
+
+    def __init__(self,):
+
 
 
 class Padder:
@@ -114,22 +120,22 @@ class PreprocessingAudioPipeline:
         self._num_expected_samples = int(loader.sample_rate * loader.duration)
 
     def process(self, audio_files_dir):
-        for master_root, _, directory in os.walk(audio_files_dir):
-            for root, _, files in os.walk(directory):
-                for file in files:
-                    file_path = os.path.join(root, file)
-                    self._process_file(file_path)
-                    print(f"Processed file {file_path}")
+        for root, subdirectories, files in os.walk(audio_files_dir):
+            for file in files:
+                file_path = os.path.join(root, file)
+                self._process_file(file_path)
+                print(f"Processed file {file_path}")
         self.saver.save_min_max_values(self.min_max_values)
 
     def _process_file(self, file_path):
         signal = self.loader.load(file_path)
-        if self._is_padding_neccesary(signal):
-            signal = self._apply_padding(signal)
-        feature = self.extractor.generate_spectrogram(signal)
-        norm_feature = self.normaliser.normalise(feature)
-        save_path = self.saver.save_feature(norm_feature, file_path)
-        self._store_min_max_value(save_path, feature.min(), feature.max())
+        if signal is not None:
+            if self._is_padding_neccesary(signal):
+                signal = self._apply_padding(signal)
+            feature = self.extractor.generate_spectrogram(signal)
+            norm_feature = self.normaliser.normalise(feature)
+            save_path = self.saver.save_feature(norm_feature, file_path)
+            self._store_min_max_value(save_path, feature.min(), feature.max())
 
     def _is_padding_neccesary(self, signal):
         if len(signal) < self._num_expected_samples:
