@@ -2,6 +2,8 @@ import os
 import pickle
 import librosa
 import numpy as np
+import utils
+import pandas as pd
 
 
 class Loader:
@@ -23,10 +25,16 @@ class Loader:
             print("error with " + file_path)
         return signal
 
-class GenereLabeler:
 
-    def __init__(self,):
+class GenreLabeler:
+    def __init__(self):
+        self.tracks = utils.load("../fma/data/fma_metadata/tracks.csv")
 
+    def find_genre(self, file_path):
+        name = os.path.split(file_path)[1]
+        index = int(name)
+        genre = self.tracks.loc[index]["track"]["genre_top"]
+        return genre
 
 
 class Padder:
@@ -81,7 +89,7 @@ class Saver:
         self.feature_save_dir = feature_save_dir
         self.min_max_values_save_dir = min_max_values_save_dir
 
-    def save_feature(self, feature, filepath):
+    def save_feature(self, feature, filepath, genre):
         save_path = self._generate_save_path(filepath)
         np.save(save_path, feature)
 
@@ -107,6 +115,7 @@ class PreprocessingAudioPipeline:
         self.generator = None
         self.normaliser = None
         self.saver = None
+        self.genrelabel = None
         self.min_max_values = {}
         self._num_expected_samples = None
 
@@ -134,7 +143,10 @@ class PreprocessingAudioPipeline:
                 signal = self._apply_padding(signal)
             feature = self.extractor.generate_spectrogram(signal)
             norm_feature = self.normaliser.normalise(feature)
-            save_path = self.saver.save_feature(norm_feature, file_path)
+            genre_signal = self.genrelabeler.find_genre(file_path)
+            save_path = self.saver.save_feature(
+                norm_feature, file_path, genre_signal
+            )
             self._store_min_max_value(save_path, feature.min(), feature.max())
 
     def _is_padding_neccesary(self, signal):
