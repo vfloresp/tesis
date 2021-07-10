@@ -131,3 +131,7 @@ dmypy.json
 *.mp3
 *.wav
 *.png
+
+
+src/min_max_values/
+src/spectrograms/

@@ -4,6 +4,7 @@ import librosa
 import numpy as np
 import utils
 import pandas as pd
+import time
 
 
 class Loader:
@@ -32,7 +33,7 @@ class GenreLabeler:
 
     def find_genre(self, file_path):
         name = os.path.split(file_path)[1]
-        index = int(name)
+        index = int(name.replace('.mp3',''))
         genre = self.tracks.loc[index]["track"]["genre_top"]
         return genre
 
@@ -90,21 +91,23 @@ class Saver:
         self.min_max_values_save_dir = min_max_values_save_dir
 
     def save_feature(self, feature, filepath, genre):
-        save_path = self._generate_save_path(filepath)
+        save_path = self._generate_save_path(filepath,genre)
+        print('Se guardo el archivo: {}'.format(save_path))
         np.save(save_path, feature)
 
     def save_min_max_values(self, min_max_values):
-        save_path = os.path.join(self.feature_save_dir, "min_max_values.pkl")
+        save_path = os.path.join(self.min_max_values_save_dir, "min_max_values.pkl")
+        print('Se guardo el archivo de min max: {}'.format(save_path))
         self._save(min_max_values, save_path)
 
     @staticmethod
-    def _save(self, data, save_path):
+    def _save(data, save_path):
         with open(save_path, "wb") as f:
             pickle.dump(data, f)
 
-    def _generate_save_path(self, file_path):
+    def _generate_save_path(self, file_path, genre):
         file_name = os.path.split(file_path)[1]
-        save_path = os.path.join(self.feature_save_dir, file_name + ".npy")
+        save_path = os.path.join(self.feature_save_dir, genre+'_'+file_name.replace('.mp3','') + ".npy")
         return save_path
 
 
@@ -118,6 +121,7 @@ class PreprocessingAudioPipeline:
         self.genrelabel = None
         self.min_max_values = {}
         self._num_expected_samples = None
+        self.genres_to_process = ['Rock', 'Experimental', 'Electronic', 'Hip-Hop', 'Folk', 'Pop']
 
     @property
     def loader(self):
@@ -132,17 +136,21 @@ class PreprocessingAudioPipeline:
         for root, subdirectories, files in os.walk(audio_files_dir):
             for file in files:
                 file_path = os.path.join(root, file)
-                self._process_file(file_path)
-                print(f"Processed file {file_path}")
+                genre_signal = self.genrelabeler.find_genre(file_path)
+                if genre_signal in self.genres_to_process:
+                    self._process_file(file_path)
+                    print(f"Processed file {file_path}")
         self.saver.save_min_max_values(self.min_max_values)
 
     def _process_file(self, file_path):
         signal = self.loader.load(file_path)
+        if signal is None:
+            print("señal no se pudo cargar")
         if signal is not None:
             if self._is_padding_neccesary(signal):
                 signal = self._apply_padding(signal)
             feature = self.extractor.generate_spectrogram(signal)
-            norm_feature = self.normaliser.normalise(feature)
+            norm_feature = self.normaliser.normalize(feature)
             genre_signal = self.genrelabeler.find_genre(file_path)
             save_path = self.saver.save_feature(
                 norm_feature, file_path, genre_signal
@@ -161,24 +169,28 @@ class PreprocessingAudioPipeline:
 
     def _store_min_max_value(self, save_path, min_val, max_val):
         self.min_max_values[save_path] = {"min": min_val, "max": max_val}
+        print("stored min max :{} {}".format(min_val,max_val))
 
 
 if __name__ == "__main__":
     FRAME_SIZE = 512
     HOP_LENGTH = 256
-    DURATION = 0.74
+    DURATION = 30.0
     SAMPLE_RATE = 22050
     MONO = True
 
-    SPECTROGRAMS_SAVE_DIR = "/home/vfloresp/Documents/tesis/tesis/src"
-    MIN_MAX_VALUES_SAVE_DIR = "/home/vfloresp/Documents/tesis/tesis/src"
+    SPECTROGRAMS_SAVE_DIR = "/home/vfloresp/Documents/tesis/tesis/src/spectrograms"
+    MIN_MAX_VALUES_SAVE_DIR = "/home/vfloresp/Documents/tesis/tesis/src/min_max_values"
     FILES_DIR = "/home/vfloresp/Documents/tesis/tesis/fma/data/fma_medium"
+
+    starttime = time.time()
 
     loader = Loader(SAMPLE_RATE, DURATION, MONO)
     padder = Padder()
     log_spectrogram_extractor = LogSpectrogramExtractor(FRAME_SIZE, HOP_LENGTH)
     min_max_normaliser = MinMaxNormaliser(0, 1)
     saver = Saver(SPECTROGRAMS_SAVE_DIR, MIN_MAX_VALUES_SAVE_DIR)
+    genrelabler = GenreLabeler()
 
     preprocessing_pipeline = PreprocessingAudioPipeline()
     preprocessing_pipeline.loader = loader
@@ -186,5 +198,8 @@ if __name__ == "__main__":
     preprocessing_pipeline.extractor = log_spectrogram_extractor
     preprocessing_pipeline.normaliser = min_max_normaliser
     preprocessing_pipeline.saver = saver
+    preprocessing_pipeline.genrelabeler=  genrelabler
 
     preprocessing_pipeline.process(FILES_DIR)
+
+    print('Tiempo de ejecución: {} s'.format((time.time()-starttime))/3600)
