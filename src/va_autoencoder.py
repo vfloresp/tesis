@@ -30,7 +30,12 @@ class VAE:
     """
 
     def __init__(
-        self, input_shape, conv_filters, conv_kernels, conv_strides, latent_space_dim
+        self,
+        input_shape,
+        conv_filters,
+        conv_kernels,
+        conv_strides,
+        latent_space_dim,
     ):
         self.input_shape = input_shape  # [28,28,1]
         self.conv_filters = conv_filters  # [2,4,8]
@@ -59,12 +64,19 @@ class VAE:
         self.model.compile(
             optimizer=optimizer,
             loss=self._calculate_combined_loss,
-            metrics=[self._calculate_reconstruction_loss, self._calculate_kl_loss],
+            metrics=[
+                self._calculate_reconstruction_loss,
+                self._calculate_kl_loss,
+            ],
         )
 
     def train(self, x_train, batch_size, num_epochs):
         self.model.fit(
-            x_train, x_train, batch_size=batch_size, epochs=num_epochs, shuffle=True
+            x_train,
+            x_train,
+            batch_size=batch_size,
+            epochs=num_epochs,
+            shuffle=True,
         )
 
     def save(self, save_folder="."):
@@ -111,9 +123,13 @@ class VAE:
         return va_autoencoder
 
     def _calculate_combined_loss(self, y_target, y_predicted):
-        reconstruction_loss = self._calculate_reconstruction_loss(y_target, y_predicted)
+        reconstruction_loss = self._calculate_reconstruction_loss(
+            y_target, y_predicted
+        )
         kl_loss = self._calculate_kl_loss(y_target, y_predicted)
-        combined_loss = self.reconstruction_loss_weight * reconstruction_loss + kl_loss
+        combined_loss = (
+            self.reconstruction_loss_weight * reconstruction_loss + kl_loss
+        )
         return combined_loss
 
     def _calculate_reconstruction_loss(self, y_target, y_predicted):
@@ -123,7 +139,11 @@ class VAE:
 
     def _calculate_kl_loss(self, y_target, y_predicted):
         kl_loss = -0.5 * K.sum(
-            1 + self.log_variance - K.square(self.mu) - K.exp(self.log_variance), axis=1
+            1
+            + self.log_variance
+            - K.square(self.mu)
+            - K.exp(self.log_variance),
+            axis=1,
         )
         return kl_loss
 
@@ -235,7 +255,7 @@ class VAE:
         return x
 
     def _add_bottleneck(self, x):
-        """Flattend data and add bottleneck with Guassian samplig (Dense layer)
+        """Flatten data and add bottleneck with Guassian samplig (Dense layer)
 
         Args:
             x ([type]): [description]
@@ -247,13 +267,15 @@ class VAE:
 
         def sample_point_from_normal_distribution(args):
             mu, log_variance = args
-            epsilon = K.random_normal(shape=K.shape(self.mu), mean=0.0, stddev=1.0)
+            epsilon = K.random_normal(
+                shape=K.shape(self.mu), mean=0.0, stddev=1.0
+            )
             sampled_point = mu + K.exp(log_variance / 2) * epsilon
             return sampled_point
 
-        x = Lambda(sample_point_from_normal_distribution, name="encoder_output")(
-            [self.mu, self.log_variance]
-        )
+        x = Lambda(
+            sample_point_from_normal_distribution, name="encoder_output"
+        )([self.mu, self.log_variance])
         return x
 
 
