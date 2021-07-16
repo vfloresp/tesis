@@ -135,3 +135,7 @@ dmypy.json
 
 src/min_max_values/
 src/spectrograms/
+src/min_max_values_short/
+src/spectrograms_short/
+src/min_max_values_shorter/
+src/spectrograms_shorter/

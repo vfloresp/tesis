@@ -109,9 +109,9 @@ class Saver:
 
     def _generate_save_path(self, file_path, genre):
         file_name = os.path.split(file_path)[1]
+        file_name = file_name.replace(".mp3", "")
         save_path = os.path.join(
-            self.feature_save_dir,
-            genre + "_" + file_name.replace(".mp3", "") + ".npy",
+            self.feature_save_dir, genre + "_" + file_name + ".npy",
         )
         return save_path
 
@@ -187,17 +187,17 @@ class PreprocessingAudioPipeline:
 if __name__ == "__main__":
     FRAME_SIZE = 512
     HOP_LENGTH = 256
-    DURATION = 30.0
+    DURATION = 5.0
     SAMPLE_RATE = 22050
     MONO = True
 
     SPECTROGRAMS_SAVE_DIR = (
-        "/home/vfloresp/Documents/tesis/tesis/src/spectrograms"
+        "/home/vfloresp/Documents/tesis/src/spectrograms_shorter"
     )
     MIN_MAX_VALUES_SAVE_DIR = (
-        "/home/vfloresp/Documents/tesis/tesis/src/min_max_values"
+        "/home/vfloresp/Documents/tesis/src/min_max_values_shorter"
     )
-    FILES_DIR = "/home/vfloresp/Documents/tesis/tesis/fma/data/fma_medium"
+    FILES_DIR = "/home/vfloresp/Documents/tesis/fma/data/fma_medium"
 
     starttime = time.time()
 
@@ -218,4 +218,9 @@ if __name__ == "__main__":
 
     preprocessing_pipeline.process(FILES_DIR)
 
-    print("Tiempo de ejecución: {} s".format((time.time() - starttime)) / 3600)
+    print(
+        "Tiempo de ejecución: {} s".format(
+            str((time.time() - starttime) / 3600)
+        )
+    )
+
